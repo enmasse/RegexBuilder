@@ -67,6 +67,28 @@ public static class RegexBuilderArbitraries
                 new string('7', minimum),
                 new string('7', maximum),
                 new string('7', maximum + 1)));
+
+    public static Arbitrary<AtLeastQuantifierSample> AtLeastQuantifierSample() =>
+        Arb.From(
+            from minimum in Gen.Choose(1, 5)
+            from additionalLength in Gen.Choose(1, 3)
+            select new AtLeastQuantifierSample(
+                minimum,
+                new string('7', minimum),
+                new string('7', minimum + additionalLength),
+                new string('7', minimum - 1)));
+
+    public static Arbitrary<RepeatedLiteralSample> RepeatedLiteralSample() =>
+        Arb.From(
+            from value in NonEmptyLiteralText().Generator
+            from count in Gen.Choose(1, 4)
+            from largerCount in Gen.Choose(count + 1, count + 3)
+            select new RepeatedLiteralSample(value, count, largerCount));
+
+    public static Arbitrary<NonEmptyLiteralSample> NonEmptyLiteralSample() =>
+        Arb.From(
+            from value in NonEmptyLiteralText().Generator
+            select new NonEmptyLiteralSample(value));
 }
 
 public readonly record struct CharacterClassSample(string PatternCharacters, char[] Members);
@@ -80,3 +102,9 @@ public readonly record struct RawPatternSample(string Pattern, string MatchingTe
 public readonly record struct ExactQuantifierSample(int Count, string MatchingText, string NonMatchingText);
 
 public readonly record struct BetweenQuantifierSample(int Minimum, int Maximum, string MinimumText, string MaximumText, string TooLongText);
+
+public readonly record struct AtLeastQuantifierSample(int Minimum, string MinimumText, string LongerText, string TooShortText);
+
+public readonly record struct RepeatedLiteralSample(string Value, int Count, int LargerCount);
+
+public readonly record struct NonEmptyLiteralSample(string Value);

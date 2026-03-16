@@ -117,4 +117,30 @@ public class RegexReplacementScenarios
 
         await Assert.That(result).IsEqualTo(input);
     }
+
+    [Test]
+    [FsCheckProperty(Arbitrary = [typeof(RegexBuilderArbitraries)])]
+    public async Task ReplaceFirst_replaces_only_the_first_generated_literal_occurrence(NonEmptyLiteralSample sample)
+    {
+        var input = sample.Value + "|" + sample.Value + "|" + sample.Value;
+
+        var result = Builder.Create()
+            .Literal(sample.Value)
+            .ReplaceFirst(input, "#");
+
+        await Assert.That(result).IsEqualTo("#|" + sample.Value + "|" + sample.Value);
+    }
+
+    [Test]
+    [FsCheckProperty(Arbitrary = [typeof(RegexBuilderArbitraries)])]
+    public async Task ReplacementBuilder_literal_round_trips_generated_text_through_replace(string value)
+    {
+        var result = Builder.Create()
+            .StartOfLine()
+            .Literal("token")
+            .EndOfLine()
+            .Replace("token", replacement => replacement.Literal(value));
+
+        await Assert.That(result).IsEqualTo(value);
+    }
 }

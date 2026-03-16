@@ -101,3 +101,10 @@
 - Implemented `RegexReplacementBuilder` and the replacement-oriented builder flows.
 - Verified the main project built successfully.
 - Verified the `RegexBuilder.Tests` test project passed.
+
+## 15. Test coverage follow-up
+> *Go ahead.*
+
+- Expanded the test suite with invalid-input and quantifier-guard coverage.
+- Added stronger property-based tests for `AtLeast`, `Optional`, `ZeroOrMore`, `OneOrMore`, and replacement behavior.
+- Kept the work limited to tests and log updates.

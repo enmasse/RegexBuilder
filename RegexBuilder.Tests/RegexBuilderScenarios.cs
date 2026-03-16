@@ -233,6 +233,91 @@ public class RegexBuilderScenarios
     }
 
     [Test]
+    public async Task Optional_without_a_preceding_segment_throws_an_invalid_operation_exception()
+    {
+        InvalidOperationException? exception = null;
+
+        try
+        {
+            Builder.Create().Optional();
+        }
+        catch (InvalidOperationException ex)
+        {
+            exception = ex;
+        }
+
+        await Assert.That(exception is not null).IsTrue();
+    }
+
+    [Test]
+    public async Task Literal_throws_an_argument_null_exception_for_null_values()
+    {
+        ArgumentNullException? exception = null;
+
+        try
+        {
+            Builder.Create().Literal(null!);
+        }
+        catch (ArgumentNullException ex)
+        {
+            exception = ex;
+        }
+
+        await Assert.That(exception?.ParamName).IsEqualTo("value");
+    }
+
+    [Test]
+    public async Task NamedGroup_throws_an_argument_exception_for_blank_names()
+    {
+        ArgumentException? exception = null;
+
+        try
+        {
+            Builder.Create().NamedGroup(" ", group => group.Literal("cat"));
+        }
+        catch (ArgumentException ex)
+        {
+            exception = ex;
+        }
+
+        await Assert.That(exception is not null).IsTrue();
+    }
+
+    [Test]
+    public async Task Exactly_throws_an_argument_out_of_range_exception_for_negative_counts()
+    {
+        ArgumentOutOfRangeException? exception = null;
+
+        try
+        {
+            Builder.Create().Digit().Exactly(-1);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            exception = ex;
+        }
+
+        await Assert.That(exception?.ParamName).IsEqualTo("count");
+    }
+
+    [Test]
+    public async Task Between_throws_an_argument_out_of_range_exception_when_maximum_is_less_than_minimum()
+    {
+        ArgumentOutOfRangeException? exception = null;
+
+        try
+        {
+            Builder.Create().Digit().Between(3, 2);
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            exception = ex;
+        }
+
+        await Assert.That(exception?.ParamName).IsEqualTo("maximum");
+    }
+
+    [Test]
     public async Task Build_combines_multiple_segments_into_a_single_pattern()
     {
         var pattern = Builder.Create()
@@ -393,5 +478,74 @@ public class RegexBuilderScenarios
         await Assert.That(regex.IsMatch(sample.MinimumText)).IsTrue();
         await Assert.That(regex.IsMatch(sample.MaximumText)).IsTrue();
         await Assert.That(regex.IsMatch(sample.TooLongText)).IsFalse();
+    }
+
+    [Test]
+    [FsCheckProperty(Arbitrary = [typeof(RegexBuilderArbitraries)])]
+    public async Task AtLeast_matches_only_text_with_at_least_the_requested_length(AtLeastQuantifierSample sample)
+    {
+        var regex = Builder.Create()
+            .StartOfLine()
+            .Digit()
+            .AtLeast(sample.Minimum)
+            .EndOfLine()
+            .ToRegex();
+
+        await Assert.That(regex.IsMatch(sample.MinimumText)).IsTrue();
+        await Assert.That(regex.IsMatch(sample.LongerText)).IsTrue();
+        await Assert.That(regex.IsMatch(sample.TooShortText)).IsFalse();
+    }
+
+    [Test]
+    [FsCheckProperty(Arbitrary = [typeof(RegexBuilderArbitraries)])]
+    public async Task ZeroOrMore_matches_empty_or_repeated_literal_sequences(RepeatedLiteralSample sample)
+    {
+        var regex = Builder.Create()
+            .StartOfLine()
+            .Literal(sample.Value)
+            .ZeroOrMore()
+            .EndOfLine()
+            .ToRegex();
+
+        var repeatedValue = string.Concat(Enumerable.Repeat(sample.Value, sample.Count));
+
+        await Assert.That(regex.IsMatch(string.Empty)).IsTrue();
+        await Assert.That(regex.IsMatch(repeatedValue)).IsTrue();
+        await Assert.That(regex.IsMatch(repeatedValue + "!")).IsFalse();
+    }
+
+    [Test]
+    [FsCheckProperty(Arbitrary = [typeof(RegexBuilderArbitraries)])]
+    public async Task OneOrMore_matches_one_or_many_literal_sequences_but_not_empty_text(RepeatedLiteralSample sample)
+    {
+        var regex = Builder.Create()
+            .StartOfLine()
+            .Literal(sample.Value)
+            .OneOrMore()
+            .EndOfLine()
+            .ToRegex();
+
+        var repeatedValue = string.Concat(Enumerable.Repeat(sample.Value, sample.Count));
+        var largerRepeatedValue = string.Concat(Enumerable.Repeat(sample.Value, sample.LargerCount));
+
+        await Assert.That(regex.IsMatch(repeatedValue)).IsTrue();
+        await Assert.That(regex.IsMatch(largerRepeatedValue)).IsTrue();
+        await Assert.That(regex.IsMatch(string.Empty)).IsFalse();
+    }
+
+    [Test]
+    [FsCheckProperty(Arbitrary = [typeof(RegexBuilderArbitraries)])]
+    public async Task Optional_matches_zero_or_one_literal_sequence_but_not_multiple_sequences(NonEmptyLiteralSample sample)
+    {
+        var regex = Builder.Create()
+            .StartOfLine()
+            .Literal(sample.Value)
+            .Optional()
+            .EndOfLine()
+            .ToRegex();
+
+        await Assert.That(regex.IsMatch(string.Empty)).IsTrue();
+        await Assert.That(regex.IsMatch(sample.Value)).IsTrue();
+        await Assert.That(regex.IsMatch(sample.Value + sample.Value)).IsFalse();
     }
 }
