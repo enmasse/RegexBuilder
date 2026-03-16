@@ -93,3 +93,11 @@
 - Created `LOG.md` at the workspace root.
 - Recorded the work in chronological order.
 - Quoted each prompt as an italic block quote.
+
+## 14. RegexBuilder implementation
+> *implement the RegexBuilder*
+
+- Implemented the fluent `RegexBuilder` pattern composition API.
+- Implemented `RegexReplacementBuilder` and the replacement-oriented builder flows.
+- Verified the main project built successfully.
+- Verified the `RegexBuilder.Tests` test project passed.

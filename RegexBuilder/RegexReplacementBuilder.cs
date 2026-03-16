@@ -1,19 +1,46 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace RegexBuilder
 {
     public sealed class RegexReplacementBuilder
     {
-        public static RegexReplacementBuilder Create() => throw new NotImplementedException();
+        private readonly List<string> _segments = [];
 
-        public RegexReplacementBuilder Literal(string value) => throw new NotImplementedException();
+        private RegexReplacementBuilder()
+        {
+        }
 
-        public RegexReplacementBuilder EntireMatch() => throw new NotImplementedException();
+        public static RegexReplacementBuilder Create() => new();
 
-        public RegexReplacementBuilder Group(int index) => throw new NotImplementedException();
+        public RegexReplacementBuilder Literal(string value)
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            _segments.Add(value.Replace("$", "$$", StringComparison.Ordinal));
+            return this;
+        }
 
-        public RegexReplacementBuilder Group(string name) => throw new NotImplementedException();
+        public RegexReplacementBuilder EntireMatch()
+        {
+            _segments.Add("$0");
+            return this;
+        }
 
-        public string Build() => throw new NotImplementedException();
+        public RegexReplacementBuilder Group(int index)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegative(index);
+            _segments.Add($"${index}");
+            return this;
+        }
+
+        public RegexReplacementBuilder Group(string name)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(name);
+            _segments.Add($"${{{name}}}");
+            return this;
+        }
+
+        public string Build() => string.Concat(_segments);
     }
 }
