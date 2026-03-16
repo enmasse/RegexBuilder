@@ -184,6 +184,17 @@ The `RegexBuilder.App` project is an interactive Blazor WebAssembly workbench th
 
 The app is published to **GitHub Pages** on every push to `master` via the included workflow.
 
+### Enabling GitHub Pages (one-time setup)
+
+Before the first deployment can succeed, GitHub Pages must be enabled manually in the repository settings:
+
+1. Open the repository on GitHub and go to **Settings**.
+2. Select **Pages** from the left sidebar.
+3. Under **Build and deployment → Source**, choose **GitHub Actions**.
+4. Click **Save**.
+
+After that the `Deploy Blazor app to GitHub Pages` workflow will deploy the app automatically on every push to `master`. You can also trigger a deployment manually from the **Actions** tab using the *workflow_dispatch* event.
+
 ## Running the tests
 
 ```bash
