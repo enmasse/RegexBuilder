@@ -125,3 +125,10 @@
 - Executed the pending repair plan for the Blazor app build failures.
 - Fixed the app-side namespace collision by qualifying `RegexBuilder.App` imports with `global::`.
 - Verified the workspace built successfully after the fix.
+
+## 18. GitHub Pages publishing setup
+> *Can you fix it?*
+
+- Added a GitHub Pages deployment workflow for the Blazor WebAssembly app.
+- Updated the app publish process to generate a `404.html` SPA fallback and `.nojekyll` in the published `wwwroot` output.
+- Verified the app could be published with the new Pages artifacts in place.
