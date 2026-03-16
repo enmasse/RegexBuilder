@@ -1,0 +1,417 @@
+﻿@page "/"
+@using System.Text.RegularExpressions
+
+<PageTitle>RegexBuilder Lab</PageTitle>
+
+@{
+    var preview = RegexWorkbench.BuildPreview(operations, selectedOptions, testInput);
+}
+
+<section class="hero-panel">
+    <div>
+        <h1>RegexBuilder Lab</h1>
+        <p>Create regexes with the existing `RegexBuilder` API, inspect the generated pattern, and test sample input without leaving the page.</p>
+    </div>
+
+    <div class="hero-actions">
+        <button class="btn btn-outline-primary" @onclick="LoadLiteralSample">Literal sample</button>
+        <button class="btn btn-outline-primary" @onclick="LoadPhoneNumberSample">Named-group sample</button>
+        <button class="btn btn-outline-secondary" @onclick="ClearAll">Clear</button>
+    </div>
+</section>
+
+<div class="workbench-grid">
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Builder steps</h2>
+            <span>@operations.Count item(s)</span>
+        </div>
+
+        <div class="editor-grid">
+            <label>
+                Operation
+                <select class="form-select" @bind="selectedKind">
+                    @foreach (var kind in availableKinds)
+                    {
+                        <option value="@kind">@GetLabel(kind)</option>
+                    }
+                </select>
+            </label>
+
+            @if (RequiresPrimaryValue(selectedKind))
+            {
+                <label>
+                    @GetPrimaryLabel(selectedKind)
+                    <input class="form-control" @bind="primaryValue" placeholder="@GetPrimaryPlaceholder(selectedKind)" />
+                </label>
+            }
+
+            @if (RequiresSecondaryValue(selectedKind))
+            {
+                <label>
+                    @GetSecondaryLabel(selectedKind)
+                    <input class="form-control" @bind="secondaryValue" placeholder="@GetSecondaryPlaceholder(selectedKind)" />
+                </label>
+            }
+        </div>
+
+        <div class="editor-actions">
+            <button class="btn btn-primary" @onclick="AddOperation">Add step</button>
+            <button class="btn btn-outline-secondary" @onclick="RemoveLastOperation" disabled="@(operations.Count == 0)">Undo last</button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(editorError))
+        {
+            <p class="validation-message">@editorError</p>
+        }
+
+        <ol class="operation-list">
+            @foreach (var entry in operations.Select((operation, index) => (operation, index)))
+            {
+                <li>
+                    <div>
+                        <strong>@GetLabel(entry.operation.Kind)</strong>
+                        <div class="operation-details">@Describe(entry.operation)</div>
+                    </div>
+
+                    <button class="btn btn-sm btn-outline-danger" @onclick="() => RemoveOperation(entry.index)">Remove</button>
+                </li>
+            }
+        </ol>
+    </section>
+
+    <section class="panel">
+        <div class="panel-header">
+            <h2>Pattern preview</h2>
+            <span>@(preview.ErrorMessage is null ? "Ready" : "Error")</span>
+        </div>
+
+        @if (preview.ErrorMessage is null)
+        {
+            <label>
+                Generated regex
+                <textarea class="form-control output-box" readonly>@preview.Pattern</textarea>
+            </label>
+        }
+        else
+        {
+            <p class="validation-message">@preview.ErrorMessage</p>
+        }
+
+        <label>
+            Builder code
+            <textarea class="form-control code-box" readonly>@preview.CodeSnippet</textarea>
+        </label>
+
+        <fieldset class="options-grid">
+            <legend>Regex options</legend>
+            @foreach (var option in optionChoices)
+            {
+                <label class="option-toggle">
+                    <input type="checkbox"
+                           checked="@selectedOptions.HasFlag(option)"
+                           @onchange="args => SetOption(option, args.Value as bool? == true)" />
+                    <span>@option</span>
+                </label>
+            }
+        </fieldset>
+    </section>
+</div>
+
+<section class="panel panel-full-width">
+    <div class="panel-header">
+        <h2>Test input</h2>
+        <span>@(preview.Matches.Count == 0 ? "No matches" : $"{preview.Matches.Count} match(es)")</span>
+    </div>
+
+    <label>
+        Input text
+        <textarea class="form-control input-box" @bind="testInput"></textarea>
+    </label>
+
+    <div class="result-banner @(preview.Matches.Count > 0 ? "success" : "neutral")">
+        @if (preview.ErrorMessage is not null)
+        {
+            <span>Fix the builder steps before testing input.</span>
+        }
+        else if (preview.Matches.Count > 0)
+        {
+            <span>The current regex matched the provided input.</span>
+        }
+        else
+        {
+            <span>The current regex did not match the provided input.</span>
+        }
+    </div>
+
+    @if (preview.Matches.Count > 0)
+    {
+        <div class="match-grid">
+            @foreach (var match in preview.Matches)
+            {
+                <article class="match-card">
+                    <h3>Match at index @match.Index</h3>
+                    <p><strong>Value:</strong> <code>@match.Value</code></p>
+                    <p><strong>Length:</strong> @match.Length</p>
+
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Group</th>
+                                <th>Success</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var group in match.Groups)
+                            {
+                                <tr>
+                                    <td>@group.DisplayName</td>
+                                    <td>@group.Success</td>
+                                    <td><code>@group.Value</code></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private readonly List<RegexOperation> operations = [];
+    private readonly RegexOperationKind[] availableKinds = Enum.GetValues<RegexOperationKind>();
+    private readonly RegexOptions[] optionChoices =
+    [
+        RegexOptions.IgnoreCase,
+        RegexOptions.Multiline,
+        RegexOptions.Singleline,
+        RegexOptions.IgnorePatternWhitespace
+    ];
+
+    private RegexOperationKind selectedKind = RegexOperationKind.StartOfLine;
+    private RegexOptions selectedOptions;
+    private string primaryValue = string.Empty;
+    private string secondaryValue = string.Empty;
+    private string testInput = "cat7";
+    private string editorError = string.Empty;
+
+    private void AddOperation()
+    {
+        try
+        {
+            operations.Add(CreateOperation());
+            primaryValue = string.Empty;
+            secondaryValue = string.Empty;
+            editorError = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            editorError = ex.Message;
+        }
+    }
+
+    private RegexOperation CreateOperation()
+    {
+        return selectedKind switch
+        {
+            RegexOperationKind.Range => new(selectedKind, RequireSingleCharacter(primaryValue, "Range start"), RequireSingleCharacter(secondaryValue, "Range end")),
+            RegexOperationKind.Exactly or RegexOperationKind.AtLeast => new(selectedKind, RequireInteger(primaryValue)),
+            RegexOperationKind.Between => new(selectedKind, RequireInteger(primaryValue), RequireInteger(secondaryValue)),
+            _ when RequiresPrimaryValue(selectedKind) && RequiresSecondaryValue(selectedKind) => new(selectedKind, RequireText(primaryValue, GetPrimaryLabel(selectedKind)), RequireText(secondaryValue, GetSecondaryLabel(selectedKind))),
+            _ when RequiresPrimaryValue(selectedKind) => new(selectedKind, RequireText(primaryValue, GetPrimaryLabel(selectedKind))),
+            _ => new(selectedKind)
+        };
+    }
+
+    private static string RequireText(string value, string label)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new InvalidOperationException($"{label} is required.");
+        }
+
+        return value;
+    }
+
+    private static string RequireSingleCharacter(string value, string label)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length != 1)
+        {
+            throw new InvalidOperationException($"{label} must be exactly one character.");
+        }
+
+        return value;
+    }
+
+    private static string RequireInteger(string value)
+    {
+        if (!int.TryParse(value, out _))
+        {
+            throw new InvalidOperationException("A whole number is required.");
+        }
+
+        return value;
+    }
+
+    private void RemoveOperation(int index)
+    {
+        operations.RemoveAt(index);
+        editorError = string.Empty;
+    }
+
+    private void RemoveLastOperation()
+    {
+        if (operations.Count == 0)
+        {
+            return;
+        }
+
+        operations.RemoveAt(operations.Count - 1);
+        editorError = string.Empty;
+    }
+
+    private void ClearAll()
+    {
+        operations.Clear();
+        selectedOptions = RegexOptions.None;
+        primaryValue = string.Empty;
+        secondaryValue = string.Empty;
+        testInput = string.Empty;
+        editorError = string.Empty;
+    }
+
+    private void LoadLiteralSample()
+    {
+        operations.Clear();
+        operations.AddRange(
+        [
+            new(RegexOperationKind.StartOfLine),
+            new(RegexOperationKind.Literal, "cat"),
+            new(RegexOperationKind.Digit),
+            new(RegexOperationKind.EndOfLine)
+        ]);
+
+        testInput = "cat7";
+        editorError = string.Empty;
+    }
+
+    private void LoadPhoneNumberSample()
+    {
+        operations.Clear();
+        operations.AddRange(
+        [
+            new(RegexOperationKind.StartOfLine),
+            new(RegexOperationKind.NamedGroupRaw, "area", "\\d{3}"),
+            new(RegexOperationKind.Literal, "-"),
+            new(RegexOperationKind.NamedGroupRaw, "number", "\\d{7}"),
+            new(RegexOperationKind.EndOfLine)
+        ]);
+
+        testInput = "123-4567890";
+        editorError = string.Empty;
+    }
+
+    private void SetOption(RegexOptions option, bool enabled)
+    {
+        selectedOptions = enabled ? selectedOptions | option : selectedOptions & ~option;
+    }
+
+    private static bool RequiresPrimaryValue(RegexOperationKind kind) => kind is
+        RegexOperationKind.Literal or
+        RegexOperationKind.Raw or
+        RegexOperationKind.CharacterClass or
+        RegexOperationKind.NegatedCharacterClass or
+        RegexOperationKind.Range or
+        RegexOperationKind.GroupRaw or
+        RegexOperationKind.NamedGroupRaw or
+        RegexOperationKind.EitherRaw or
+        RegexOperationKind.Exactly or
+        RegexOperationKind.AtLeast or
+        RegexOperationKind.Between;
+
+    private static bool RequiresSecondaryValue(RegexOperationKind kind) => kind is
+        RegexOperationKind.Range or
+        RegexOperationKind.NamedGroupRaw or
+        RegexOperationKind.EitherRaw or
+        RegexOperationKind.Between;
+
+    private static string GetLabel(RegexOperationKind kind) => kind switch
+    {
+        RegexOperationKind.StartOfLine => "Start of line",
+        RegexOperationKind.EndOfLine => "End of line",
+        RegexOperationKind.AnyCharacter => "Any character",
+        RegexOperationKind.Digit => "Digit",
+        RegexOperationKind.NonDigit => "Non-digit",
+        RegexOperationKind.WordCharacter => "Word character",
+        RegexOperationKind.NonWordCharacter => "Non-word character",
+        RegexOperationKind.Whitespace => "Whitespace",
+        RegexOperationKind.NonWhitespace => "Non-whitespace",
+        RegexOperationKind.CharacterClass => "Character class",
+        RegexOperationKind.NegatedCharacterClass => "Negated class",
+        RegexOperationKind.GroupRaw => "Group (raw inner pattern)",
+        RegexOperationKind.NamedGroupRaw => "Named group (raw inner pattern)",
+        RegexOperationKind.EitherRaw => "Either (raw branches)",
+        RegexOperationKind.ZeroOrMore => "Zero or more",
+        RegexOperationKind.OneOrMore => "One or more",
+        _ => kind.ToString()
+    };
+
+    private static string GetPrimaryLabel(RegexOperationKind kind) => kind switch
+    {
+        RegexOperationKind.Range => "Start character",
+        RegexOperationKind.NamedGroupRaw => "Group name",
+        RegexOperationKind.EitherRaw => "Left branch",
+        RegexOperationKind.Exactly => "Count",
+        RegexOperationKind.AtLeast => "Minimum",
+        RegexOperationKind.Between => "Minimum",
+        _ => "Value"
+    };
+
+    private static string GetSecondaryLabel(RegexOperationKind kind) => kind switch
+    {
+        RegexOperationKind.Range => "End character",
+        RegexOperationKind.NamedGroupRaw => "Inner raw pattern",
+        RegexOperationKind.EitherRaw => "Right branch",
+        RegexOperationKind.Between => "Maximum",
+        _ => "Value"
+    };
+
+    private static string GetPrimaryPlaceholder(RegexOperationKind kind) => kind switch
+    {
+        RegexOperationKind.Literal => "cat",
+        RegexOperationKind.Raw => "[A-Z]{3}",
+        RegexOperationKind.CharacterClass => "abc123",
+        RegexOperationKind.NegatedCharacterClass => "abc",
+        RegexOperationKind.Range => "a",
+        RegexOperationKind.GroupRaw => "\\d{2}",
+        RegexOperationKind.NamedGroupRaw => "area",
+        RegexOperationKind.EitherRaw => "cat",
+        RegexOperationKind.Exactly => "3",
+        RegexOperationKind.AtLeast => "1",
+        RegexOperationKind.Between => "2",
+        _ => string.Empty
+    };
+
+    private static string GetSecondaryPlaceholder(RegexOperationKind kind) => kind switch
+    {
+        RegexOperationKind.Range => "z",
+        RegexOperationKind.NamedGroupRaw => "\\d{3}",
+        RegexOperationKind.EitherRaw => "dog",
+        RegexOperationKind.Between => "4",
+        _ => string.Empty
+    };
+
+    private static string Describe(RegexOperation operation)
+    {
+        return operation.Kind switch
+        {
+            RegexOperationKind.StartOfLine or RegexOperationKind.EndOfLine or RegexOperationKind.AnyCharacter or RegexOperationKind.Digit or RegexOperationKind.NonDigit or RegexOperationKind.WordCharacter or RegexOperationKind.NonWordCharacter or RegexOperationKind.Whitespace or RegexOperationKind.NonWhitespace or RegexOperationKind.Optional or RegexOperationKind.ZeroOrMore or RegexOperationKind.OneOrMore => "No extra values",
+            RegexOperationKind.NamedGroupRaw => $"Name: {operation.PrimaryValue}, Pattern: {operation.SecondaryValue}",
+            RegexOperationKind.EitherRaw => $"Left: {operation.PrimaryValue}, Right: {operation.SecondaryValue}",
+            RegexOperationKind.Range or RegexOperationKind.Between => $"{operation.PrimaryValue} → {operation.SecondaryValue}",
+            _ => operation.PrimaryValue
+        };
+    }
+}

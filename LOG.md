@@ -108,3 +108,20 @@
 - Expanded the test suite with invalid-input and quantifier-guard coverage.
 - Added stronger property-based tests for `AtLeast`, `Optional`, `ZeroOrMore`, `OneOrMore`, and replacement behavior.
 - Kept the work limited to tests and log updates.
+
+## 16. Blazor app scaffold
+> *Sounds good! Let's go!*
+
+- Created `RegexBuilder.App` as a `.NET 10` Blazor WebAssembly frontend suitable for static hosting.
+- Wired the app to the existing `RegexBuilder` library and added it to the solution.
+- Implemented a browser-based regex workbench for composing builder steps, previewing generated code and patterns, and testing matches against input text.
+- Updated the app shell and static host settings for a static-site deployment path.
+- Verified the workspace built successfully.
+- Verified the existing `RegexBuilder.Tests` project still passed.
+
+## 17. Blazor app build repair
+> *Execute the plan*
+
+- Executed the pending repair plan for the Blazor app build failures.
+- Fixed the app-side namespace collision by qualifying `RegexBuilder.App` imports with `global::`.
+- Verified the workspace built successfully after the fix.
